@@ -1,0 +1,99 @@
+#!/bin/bash
+# -*- sh -*-
+
+: << =cut
+
+=head1 NAME
+
+vg_ - Wildcard-plugin to monitor lvm2 volume groups and the
+logival volumes in that group.
+
+=head1 CONFIGURATION
+
+This plugin does not require configuration.
+
+This is a wildcard plugin. To monitor a volume group , link
+vg_<volume group name> to this file. E.g.
+
+  ln -s /usr/share/munin/plugins/vg_ \
+        /etc/munin/plugins/vg_local
+
+...will monitor the volume group named local.
+
+=head1 AUTHOR
+
+Jonas Forsberg - jonas@forsberg.co
+
+=head1 LICENSE
+# This file may be licensed under the terms of of the
+# GNU General Public License Version 2 (the ``GPL'').
+#
+# Software distributed under the License is distributed
+# on an ``AS IS'' basis, WITHOUT WARRANTY OF ANY KIND, either
+# express or implied. See the GPL for the specific language
+# governing rights and limitations.
+#
+# You should have received a copy of the GPL along with this
+# program. If not, go to http://www.gnu.org/licenses/gpl.html
+# or write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+
+=head1 MAGIC MARKERS
+
+ #%# family=auto
+ #%# capabilities=autoconf suggest
+
+=head1 VERSION
+ 
+ 0.1
+
+=cut
+
+# -----
+VGS=$(which vgs)
+LVS=$(which lvs)
+
+VOLUMEGROUP=${0##*vg_}
+
+do_ () {
+    echo "size.value $($VGS --nosuffix --noheadings --unit b -o vg_size  $VOLUMEGROUP | sed 's/ //g')"
+    $LVS --noheading --unit b --nosuffix --options lv_name,lv_size $VOLUMEGROUP | awk '{print $1".value "$2}'
+}
+
+do_autoconf () {
+    [ $VGS ] || { echo "no (vgs not found)" ; exit 0 ;}
+    [ $LVS ] || { echo "no (lvs not found)" ; exit 0 ;}
+    echo "yes"
+    exit 0
+}
+
+do_suggest () {
+    $VGS --noheadings -o vg_name | sed 's/ //g'
+}
+
+do_config () {
+        cat <<EOF
+graph_title Volume group $VGNAME
+graph_info Information about the volume groupe 
+graph_vlabel bytes
+graph_category disk
+graph_args --base 1000 -l 0
+graph_scale yes
+size.label Size
+size.info Size of Vg in bytes
+size.type GAUGE
+size.draw AREA
+EOF
+$LVS --noheading --unit b --nosuffix --options lv_name $VOLUMEGROUP | \
+ awk '{print $1".label "$1}
+      {print $1".type GAUGE"}
+      {print $1".draw LINE2"}'
+}
+
+#sharing.label Sharing
+#sharing.info An indication of memory pages savings
+#sharing.type GAUGE
+#sharing.draw LINE2
+
+do_$1
+
