@@ -73,7 +73,7 @@ do_suggest () {
 
 do_config () {
         cat <<EOF
-graph_title Volume group $VGNAME
+graph_title Volume group $VOLUMEGROUP
 graph_info Information about the volume groupe 
 graph_vlabel bytes
 graph_category disk
