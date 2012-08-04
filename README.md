@@ -1,7 +1,9 @@
 # vg_
 ** vg_ - Wildcard-plugin to monitor lvm2 volume groups and the logival volumes in that group. **
 
-This plugin does not require configuration.
+Configuration
+[vg_*]
+user root
 
 This is a wildcard plugin. To monitor a volume group , link
 vg_<volume group name> to this file. E.g.
