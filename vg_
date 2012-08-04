@@ -81,7 +81,7 @@ graph_vlabel bytes
 graph_category disk
 graph_args --base 1024 -l 0
 graph_scale yes
-free.label Size
+free.label Free
 free.info Volume Group Free space
 free.draw AREA
 EOF
