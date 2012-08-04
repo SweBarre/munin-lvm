@@ -57,6 +57,7 @@ VOLUMEGROUP=${0##*vg_}
 
 do_ () {
     echo "free.value $($VGS --nosuffix --noheadings --unit b -o vg_free  $VOLUMEGROUP | sed 's/ //g')"
+    echo "size.value $($VGS --nosuffix --noheadings --unit b -o vg_size  $VOLUMEGROUP | sed 's/ //g')"
     # because of bug http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=601124 we can not have a field named root
     # if a logical volume is named root We'll change that to _root_
     $LVS --noheading --unit b --nosuffix --options lv_name,lv_size $VOLUMEGROUP | awk '{if ($1 == "root") print "_root_.value "$2; else print $1".value "$2}'
@@ -84,6 +85,9 @@ graph_scale yes
 free.label Free
 free.info Volume Group Free space
 free.draw AREA
+size.label Size
+size.info Total size of volume group
+size.draw LINE1   
 EOF
     # because of bug http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=601124 we can not have a field named root
     # if a logical volume is named root We'll change that to _root_
@@ -97,7 +101,6 @@ EOF
           {print $1".info "$1" Logical Volume Size"}
           {print $1".draw STACK"}
         }}'
-        
 }
 
 
