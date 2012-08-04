@@ -56,8 +56,10 @@ LVS=$(which lvs)
 VOLUMEGROUP=${0##*vg_}
 
 do_ () {
-    echo "size.value $($VGS --nosuffix --noheadings --unit b -o vg_free  $VOLUMEGROUP | sed 's/ //g')"
-    $LVS --noheading --unit b --nosuffix --options lv_name,lv_size $VOLUMEGROUP | awk '{print $1".value "$2}'
+    echo "free.value $($VGS --nosuffix --noheadings --unit b -o vg_free  $VOLUMEGROUP | sed 's/ //g')"
+    # because of bug http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=601124 we can not have a field named root
+    # if a logical volume is named root We'll change that to _root_
+    $LVS --noheading --unit b --nosuffix --options lv_name,lv_size $VOLUMEGROUP | awk '{if ($1 == "root") print "_root_.value "$2; else print $1".value "$2}'
 }
 
 do_autoconf () {
@@ -73,21 +75,29 @@ do_suggest () {
 
 do_config () {
     cat <<EOF
-graph_title Volume group - $VOLUMEGROUP
-graph_info Information about the volume groupe 
+graph_title Volume group $VOLUMEGROUP
+graph_info Information about the volume group
 graph_vlabel bytes
 graph_category disk
 graph_args --base 1024 -l 0
 graph_scale yes
-size.label Size
-size.info Size of VG in bytes
-size.type GAUGE
-size.draw AREA
+free.label Size
+free.info Volume Group Free space
+free.draw AREA
 EOF
+    # because of bug http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=601124 we can not have a field named root
+    # if a logical volume is named root We'll change that to _root_
    $LVS --noheading --unit b --nosuffix --options lv_name $VOLUMEGROUP | \
-   awk '{print $1".label "$1}
-        {print $1".type GAUGE"}
-        {print $1".draw STACK"}'
+   awk '{if ($1 == "root") {
+          {print "_root_.label "$1}
+          {print "_root_.info "$1" Logical Volume Size"}
+          {print "_root_.draw STACK"}
+        } else {
+          {print $1".label "$1}
+          {print $1".info "$1" Logical Volume Size"}
+          {print $1".draw STACK"}
+        }}'
+        
 }
 
 
