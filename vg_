@@ -57,7 +57,7 @@ VOLUMEGROUP=${0##*vg_}
 
 do_ () {
     echo "size.value $($VGS --nosuffix --noheadings --unit b -o vg_size  $VOLUMEGROUP | sed 's/ //g')"
-    $LVS --noheading --unit b --nosuffix --options lv_name,lv_size $VOLUMEGROUP | awk '{print $1".value "$2}'
+#    $LVS --noheading --unit b --nosuffix --options lv_name,lv_size $VOLUMEGROUP | awk '{print $1".value "$2}'
 }
 
 do_autoconf () {
@@ -77,23 +77,19 @@ graph_title Volume group $VOLUMEGROUP
 graph_info Information about the volume groupe 
 graph_vlabel bytes
 graph_category disk
-graph_args --base 1000 -l 0
+graph_args --base 1024 -l 0
 graph_scale yes
 size.label Size
-size.info Size of Vg in bytes
+size.info Size of VG in bytes
 size.type GAUGE
 size.draw AREA
 EOF
-$LVS --noheading --unit b --nosuffix --options lv_name $VOLUMEGROUP | \
- awk '{print $1".label "$1}
-      {print $1".type GAUGE"}
-      {print $1".draw LINE2"}'
+#$LVS --noheading --unit b --nosuffix --options lv_name $VOLUMEGROUP | \
+# awk '{print $1".label "$1}
+#      {print $1".type GAUGE"}
+#      {print $1".draw LINE2"}'
 }
 
-#sharing.label Sharing
-#sharing.info An indication of memory pages savings
-#sharing.type GAUGE
-#sharing.draw LINE2
 
 do_$1
 
