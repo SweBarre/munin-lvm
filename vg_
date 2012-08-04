@@ -10,7 +10,9 @@ logival volumes in that group.
 
 =head1 CONFIGURATION
 
-This plugin does not require configuration.
+Configuration:
+[vg_*]
+user root
 
 This is a wildcard plugin. To monitor a volume group , link
 vg_<volume group name> to this file. E.g.
