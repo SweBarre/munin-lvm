@@ -1,0 +1,194 @@
+#!/bin/bash
+# -*- sh -*-
+
+: << =cut
+
+=head1 NAME
+
+lvthin_ - Wildcard-plugin to monitor lvm2 thin pools and
+thin provisioned logical volumes.
+
+=head1 CONFIGURATION
+
+The plugin may need to run as root to get volume groupe and 
+logical volume information
+
+  [lvthin_*]
+      user root
+
+The plugin needs to binaries from the lvm tools, lvs and vgs
+It will use the lvs and vgs found in default PATH, if you need
+to change this you need to configure this:
+
+  [lvthin_*]
+     env.LVS /sbin/lvs
+     env.VGS /sbin/vgs
+
+Default warning and critical  will be set if the thin pool is 
+cunsumed over 80% used AND more then 100% is provisioned to 
+logical volumes.
+This could be changed by setting the enviroment variable
+use_warning to the following three valuse
+ no	: No warnings or critical values on the thin pool
+	  will be set
+ yes	: always use warning and critical values on pool
+	  consumption
+ over	: (default) only use warning and critical if
+	  the pool is over provisioned
+
+  [lvthin_*]
+      env.use_warning over
+
+The default value for warning is 80
+the default value for critical is 95
+To set warning and critical levels do like this:
+
+  [lvthin_*]
+      env.warning 80
+      env.critical 95
+
+=head1 AUTHOR
+
+Jonas Forsberg - jonas@forsberg.co
+
+=head1 LICENSE
+# This file may be licensed under the terms of of the
+# GNU General Public License Version 2 (the ``GPL'').
+#
+# Software distributed under the License is distributed
+# on an ``AS IS'' basis, WITHOUT WARRANTY OF ANY KIND, either
+# express or implied. See the GPL for the specific language
+# governing rights and limitations.
+#
+# You should have received a copy of the GPL along with this
+# program. If not, go to http://www.gnu.org/licenses/gpl.html
+# or write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+
+=head1 MAGIC MARKERS
+
+ #%# family=auto
+ #%# capabilities=autoconf suggest
+
+=head1 VERSION
+ 
+ 0.1
+
+=cut
+
+# -----
+#. $MUNIN_LIBDIR/plugins/plugin.sh
+
+[ -z "$VGS" ] && VGS="$(which vgs)"
+[ -z "$LVS2" ] && LVS="$(which lvs)"
+[ -z "$use_warning" ] && use_warning="over"
+[ -z "$warning" ] && warning="80"
+[ -z "$critical" ] && critical="95"
+
+GROUP=${0##*lvthin_}
+POOL=${GROUP##*.}
+GROUP=${GROUP%%.*}
+
+
+do_ () {
+    POOL_PROVISIONED=0
+    IFS=$'\n'
+    POOL_INFO="$($LVS --nosuffix --noheadings --unit b -o lv_name,lv_size,data_percent ${GROUP}/${POOL})"
+    POOL_SIZE="$(echo $POOL_INFO | awk '{print $2}')"
+    POOL_PERCENT="$(echo $POOL_INFO | awk '{print $3}')"
+    # Print the pool size
+    echo "lv_pool.value $POOL_PERCENT"
+    
+    for LV in $($LVS --nosuffix --noheadings --unit b -o lv_name,lv_size,pool_lv,data_percent $GROUP)
+    do
+       LV_NAME="$(echo $LV | awk '{print $1}')"
+       LV_SIZE="$(echo $LV | awk '{print $2}')"
+       LV_POOL="$(echo $LV | awk '{print $3}')"
+       LV_PERCENT="$(echo $LV | awk '{print $4}')"
+       if [ "$POOL" = "$LV_POOL" ]
+       then
+           CALCULATION="scale=4;(($LV_SIZE*($LV_PERCENT/100))/$POOL_SIZE)*100"
+           POOL_CONSUMPTION=$(echo $CALCULATION | bc)
+           echo "lv_${LV_NAME}.value $POOL_CONSUMPTION"
+           POOL_PROVISIONED=$(echo "$POOL_PROVISIONED+$LV_SIZE" | bc)
+       fi
+    done
+    CALCULATION="scale=2;($POOL_PROVISIONED/$POOL_SIZE)*100"
+    echo "provisioned.value $(echo $CALCULATION | bc)"
+    IFS=$' '
+}
+
+do_autoconf () {
+    [ $VGS ] || { echo "no (vgs not found)" ; exit 0 ;}
+    [ $LVS ] || { echo "no (lvs not found)" ; exit 0 ;}
+    echo "yes"
+    exit 0
+}
+
+do_suggest () {
+    for VG in $($VGS --noheadings -o vg_name | sed 's/ //g')
+    do
+        for POOL in $($LVS --noheading  --options lv_name,lv_attr $VG | sed -n 's/^ \+\(.*\) t.*$/\1/p')
+        do
+            echo "${VG}.${POOL}"
+        done
+    done
+}
+
+do_config () {
+    cat <<EOF
+graph_title LVM Thin Pool - ${GROUP}/${POOL}
+graph_info Usage of thin provisioning pool usage in LVM
+graph_vlabel % of pool size
+graph_category disk
+graph_args --base 1000 -l 0
+graph_scale yes
+provisioned.label Provisioned
+provisioned.info How much is provisioned to logical volumes 
+provisioned.draw LINE2
+lv_pool.label Pool Usage
+lv_pool.info How much the logical volumes consumes from the pool
+lv_pool.draw LINE1
+EOF
+
+    FIRST=/bin/true
+    PROVISIONED=0
+    IFS=$'\n'
+    for LV in $($LVS --noheadings --nosuffix --unit b -o lv_name,pool_lv,lv_size $GROUP)
+    do
+       LV_NAME="$(echo $LV | awk '{print $1}')"
+       LV_POOL="$(echo $LV | awk '{print $2}')"
+       LV_PROV="$(echo $LV | awk '{print $3}')"
+       if [ "$POOL" = "$LV_POOL" ]
+       then
+           echo "lv_${LV_NAME}.label $LV_NAME"
+           echo "lv_${LV_NAME}.info The volume consumed by logical volume $LV_NAME"
+           PROVISIONED=$(echo "$PROVISIONED+$LV_PROV" | bc )
+           if  $FIRST  
+           then
+               echo "lv_${LV_NAME}.draw AREA"
+               FIRST=/bin/false
+           else
+               echo "lv_${LV_NAME}.draw STACK"
+           fi
+       fi
+    done
+    FS=$' '
+    if [ "$use_warning" = "over" ]
+    then
+        POOL_SIZE=$($LVS --nosuffix --noheadings --unit b -o lv_size ${GROUP}/${POOL} | sed 's/ //g')
+        if [ $( echo "$PROVISIONED-$POOL_SIZE" | bc) -gt 0 ]
+        then
+            use_warning="yes"
+        fi
+    fi
+    if [ "$use_warning" = "yes" ]
+    then
+        echo "lv_pool.warning $warning"
+        echo "lv_pool.critical $critical"
+    fi
+   
+}
+
+do_$1
+
