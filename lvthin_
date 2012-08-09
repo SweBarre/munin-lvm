@@ -80,7 +80,7 @@ Jonas Forsberg - jonas@forsberg.co
 #. $MUNIN_LIBDIR/plugins/plugin.sh
 
 [ -z "$VGS" ] && VGS="$(which vgs)"
-[ -z "$LVS2" ] && LVS="$(which lvs)"
+[ -z "$LVS" ] && LVS="$(which lvs)"
 [ -z "$use_warning" ] && use_warning="over"
 [ -z "$warning" ] && warning="80"
 [ -z "$critical" ] && critical="95"
