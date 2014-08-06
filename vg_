@@ -70,7 +70,7 @@ do_ () {
     echo "size.value $($VGS --nosuffix --noheadings --unit b -o vg_size  $VOLUMEGROUP | sed 's/ //g')"
     # because of bug http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=601124 we can not have a field named root
     # adding lv_ to every logical volume name
-    $LVS --noheading --unit b --nosuffix --options lv_name,lv_size $VOLUMEGROUP | awk '{print "lv_"$1".value "$2}'
+    $LVS --noheading --unit b --nosuffix --options lv_name,lv_size $VOLUMEGROUP | sed 's/\./_/g' | awk '{print "lv_"$1".value "$2}'
 }
 
 do_autoconf () {
