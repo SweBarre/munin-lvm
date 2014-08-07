@@ -102,6 +102,7 @@ EOF
     # because of bug http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=601124 we can not have a field named root
     # adding lv_ to every logical volume name
    $LVS --noheading --unit b --nosuffix --options lv_name $VOLUMEGROUP | \
+   sed 's/\./_/g' | \
    awk '{ {print "lv_"$1".label "$1}
           {print "lv_"$1".info "$1" Logical Volume Size"}
           {print "lv_"$1".draw STACK"}
