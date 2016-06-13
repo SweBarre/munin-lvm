@@ -18,7 +18,7 @@ The plugin needs to binaries from the lvm tools, lvs and vgs
 It will use the lvs and vgs found in default PATH, if you need
 to change this you need to configure this:
 
-  [lvthin_*]
+  [vg_*]
      env.LVS /sbin/lvs
      env.VGS /sbin/vgs
 
@@ -95,9 +95,6 @@ graph_scale yes
 size.label Size
 size.info Total size of volume group
 size.draw LINE1   
-free.label Free
-free.info Volume Group Free space
-free.draw AREA
 EOF
     # because of bug http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=601124 we can not have a field named root
     # adding lv_ to every logical volume name
@@ -105,8 +102,13 @@ EOF
    sed 's/\./_/g' | \
    awk '{ {print "lv_"$1".label "$1}
           {print "lv_"$1".info "$1" Logical Volume Size"}
-          {print "lv_"$1".draw STACK"}
+          {print (NR==1 ? "lv_"$1".draw AREA" : "lv_"$1".draw STACK")}
         }'
+   cat <<EOF
+free.label Free
+free.info Volume Group Free space
+free.draw STACK
+EOF
 }
 
 
